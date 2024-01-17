@@ -470,9 +470,8 @@ impl<T, A: Allocator> RawVec<T, A> {
         // for the T::IS_ZST case since current_memory() will have returned
         // None.
         if cap == 0 {
-            unsafe { self.alloc.deallocate(ptr, layout) };
-            self.ptr = Unique::dangling();
-            self.cap = Cap::ZERO;
+            // Reuse the drop code by replacing self with the default.
+            crate::mem::take(self);
         } else {
             let ptr = unsafe {
                 // `Layout::array` cannot overflow here because it would have
