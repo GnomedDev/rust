@@ -1941,7 +1941,7 @@ impl<'a, K, V> ExtractIfInner<'a, K, V> {
             if pred(k, v) {
                 *self.length -= 1;
                 let (kv, pos) = kv.remove_kv_tracking(
-                    || {
+                    &mut || {
                         // SAFETY: we will touch the root in a way that will not
                         // invalidate the position returned.
                         let root = unsafe { self.dormant_root.take().unwrap().awaken() };
@@ -3127,7 +3127,7 @@ impl<'a, K: Ord, V, A: Allocator + Clone> CursorMutKey<'a, K, V, A> {
             Some(current) => current,
         };
 
-        let handle = edge.insert_recursing(key, value, self.alloc.clone(), |ins| {
+        let handle = edge.insert_recursing(key, value, self.alloc.clone(), &mut |ins| {
             drop(ins.left);
             // SAFETY: The handle to the newly inserted value is always on a
             // leaf node, so adding a new root node doesn't invalidate it.
@@ -3173,7 +3173,7 @@ impl<'a, K: Ord, V, A: Allocator + Clone> CursorMutKey<'a, K, V, A> {
             Some(current) => current,
         };
 
-        let handle = edge.insert_recursing(key, value, self.alloc.clone(), |ins| {
+        let handle = edge.insert_recursing(key, value, self.alloc.clone(), &mut |ins| {
             drop(ins.left);
             // SAFETY: The handle to the newly inserted value is always on a
             // leaf node, so adding a new root node doesn't invalidate it.
@@ -3257,7 +3257,7 @@ impl<'a, K: Ord, V, A: Allocator + Clone> CursorMutKey<'a, K, V, A> {
             // This should be unwrap(), but that doesn't work because NodeRef
             // doesn't implement Debug. The condition is checked above.
             .ok()?
-            .remove_kv_tracking(|| emptied_internal_root = true, self.alloc.clone());
+            .remove_kv_tracking(&mut || emptied_internal_root = true, self.alloc.clone());
         self.current = Some(pos);
         *self.length -= 1;
         if emptied_internal_root {
@@ -3286,7 +3286,7 @@ impl<'a, K: Ord, V, A: Allocator + Clone> CursorMutKey<'a, K, V, A> {
             // This should be unwrap(), but that doesn't work because NodeRef
             // doesn't implement Debug. The condition is checked above.
             .ok()?
-            .remove_kv_tracking(|| emptied_internal_root = true, self.alloc.clone());
+            .remove_kv_tracking(&mut || emptied_internal_root = true, self.alloc.clone());
         self.current = Some(pos);
         *self.length -= 1;
         if emptied_internal_root {

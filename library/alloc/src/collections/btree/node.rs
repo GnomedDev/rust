@@ -1041,7 +1041,7 @@ impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, mark
         key: K,
         value: V,
         alloc: A,
-        split_root: impl FnOnce(SplitResult<'a, K, V, marker::LeafOrInternal>),
+        split_root: &mut dyn FnMut(SplitResult<'a, K, V, marker::LeafOrInternal>),
     ) -> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::KV> {
         let (mut split, handle) = match self.insert(key, value, alloc.clone()) {
             // SAFETY: we have finished splitting and can now re-awaken the

@@ -7,9 +7,9 @@ impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::LeafOrInter
     /// the leaf edge corresponding to that former pair. It's possible this empties
     /// a root node that is internal, which the caller should pop from the map
     /// holding the tree. The caller should also decrement the map's length.
-    pub fn remove_kv_tracking<F: FnOnce(), A: Allocator + Clone>(
+    pub fn remove_kv_tracking<A: Allocator + Clone>(
         self,
-        handle_emptied_internal_root: F,
+        handle_emptied_internal_root: &mut dyn FnMut(),
         alloc: A,
     ) -> ((K, V), Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::Edge>) {
         match self.force() {
@@ -20,9 +20,9 @@ impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::LeafOrInter
 }
 
 impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::KV> {
-    fn remove_leaf_kv<F: FnOnce(), A: Allocator + Clone>(
+    fn remove_leaf_kv<A: Allocator + Clone>(
         self,
-        handle_emptied_internal_root: F,
+        handle_emptied_internal_root: &mut dyn FnMut(),
         alloc: A,
     ) -> ((K, V), Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::Edge>) {
         let (old_kv, mut pos) = self.remove();
@@ -73,9 +73,9 @@ impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, mark
 }
 
 impl<'a, K: 'a, V: 'a> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Internal>, marker::KV> {
-    fn remove_internal_kv<F: FnOnce(), A: Allocator + Clone>(
+    fn remove_internal_kv<A: Allocator + Clone>(
         self,
-        handle_emptied_internal_root: F,
+        handle_emptied_internal_root: &mut dyn FnMut(),
         alloc: A,
     ) -> ((K, V), Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::Edge>) {
         // Remove an adjacent KV from its leaf and then put it back in place of

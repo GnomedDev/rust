@@ -360,13 +360,14 @@ impl<'a, K: Ord, V, A: Allocator + Clone> VacantEntry<'a, K, V, A> {
             }
             Some(handle) => {
                 let new_handle =
-                    handle.insert_recursing(self.key, value, self.alloc.clone(), |ins| {
+                    handle.insert_recursing(self.key, value, self.alloc.clone(), &mut |ins| {
                         drop(ins.left);
                         // SAFETY: Pushing a new root node doesn't invalidate
                         // handles to existing nodes.
                         let map = unsafe { self.dormant_map.reborrow() };
                         let root = map.root.as_mut().unwrap(); // same as ins.left
-                        root.push_internal_level(self.alloc).push(ins.kv.0, ins.kv.1, ins.right)
+                        root.push_internal_level(self.alloc.clone())
+                            .push(ins.kv.0, ins.kv.1, ins.right)
                     });
 
                 // Get the pointer to the value
@@ -553,8 +554,9 @@ impl<'a, K: Ord, V, A: Allocator + Clone> OccupiedEntry<'a, K, V, A> {
     // Body of `remove_entry`, probably separate because the name reflects the returned pair.
     pub(super) fn remove_kv(self) -> (K, V) {
         let mut emptied_internal_root = false;
-        let (old_kv, _) =
-            self.handle.remove_kv_tracking(|| emptied_internal_root = true, self.alloc.clone());
+        let (old_kv, _) = self
+            .handle
+            .remove_kv_tracking(&mut || emptied_internal_root = true, self.alloc.clone());
         // SAFETY: we consumed the intermediate root borrow, `self.handle`.
         let map = unsafe { self.dormant_map.awaken() };
         map.length -= 1;
