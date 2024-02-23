@@ -848,41 +848,5 @@ where
         return;
     }
 
-    let elem_alloc_fn = |len: usize| -> *mut T {
-        // SAFETY: Creating the layout is safe as long as merge_sort never calls this with len >
-        // v.len(). Alloc in general will only be used as 'shadow-region' to store temporary swap
-        // elements.
-        unsafe { alloc::alloc(alloc::Layout::array::<T>(len).unwrap_unchecked()) as *mut T }
-    };
-
-    let elem_dealloc_fn = |buf_ptr: *mut T, len: usize| {
-        // SAFETY: Creating the layout is safe as long as merge_sort never calls this with len >
-        // v.len(). The caller must ensure that buf_ptr was created by elem_alloc_fn with the same
-        // len.
-        unsafe {
-            alloc::dealloc(buf_ptr as *mut u8, alloc::Layout::array::<T>(len).unwrap_unchecked());
-        }
-    };
-
-    let run_alloc_fn = |len: usize| -> *mut sort::TimSortRun {
-        // SAFETY: Creating the layout is safe as long as merge_sort never calls this with an
-        // obscene length or 0.
-        unsafe {
-            alloc::alloc(alloc::Layout::array::<sort::TimSortRun>(len).unwrap_unchecked())
-                as *mut sort::TimSortRun
-        }
-    };
-
-    let run_dealloc_fn = |buf_ptr: *mut sort::TimSortRun, len: usize| {
-        // SAFETY: The caller must ensure that buf_ptr was created by elem_alloc_fn with the same
-        // len.
-        unsafe {
-            alloc::dealloc(
-                buf_ptr as *mut u8,
-                alloc::Layout::array::<sort::TimSortRun>(len).unwrap_unchecked(),
-            );
-        }
-    };
-
-    sort::merge_sort(v, &mut is_less, elem_alloc_fn, elem_dealloc_fn, run_alloc_fn, run_dealloc_fn);
+    sort::merge_sort(v, &mut is_less, alloc::alloc, alloc::dealloc);
 }

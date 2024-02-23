@@ -9,6 +9,7 @@
 //! In addition it also contains the core logic of the stable sort used by `slice::sort` based on
 //! TimSort.
 
+use crate::alloc::Layout;
 use crate::cmp;
 use crate::mem::{self, MaybeUninit, SizedTypeProperties};
 use crate::ptr;
@@ -1018,6 +1019,9 @@ where
     }
 }
 
+type AllocF = unsafe fn(Layout) -> *mut u8;
+type DeallocF = unsafe fn(*mut u8, Layout);
+
 /// This merge sort borrows some (but not all) ideas from TimSort, which used to be described in
 /// detail [here](https://github.com/python/cpython/blob/main/Objects/listsort.txt). However Python
 /// has switched to a Powersort based implementation.
@@ -1031,19 +1035,9 @@ where
 /// 2. for every `i` in `2..runs.len()`: `runs[i - 2].len > runs[i - 1].len + runs[i].len`
 ///
 /// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
-pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
-    v: &mut [T],
-    is_less: &mut CmpF,
-    elem_alloc_fn: ElemAllocF,
-    elem_dealloc_fn: ElemDeallocF,
-    run_alloc_fn: RunAllocF,
-    run_dealloc_fn: RunDeallocF,
-) where
+pub fn merge_sort<T, CmpF>(v: &mut [T], is_less: &mut CmpF, alloc: AllocF, dealloc: DeallocF)
+where
     CmpF: FnMut(&T, &T) -> bool,
-    ElemAllocF: Fn(usize) -> *mut T,
-    ElemDeallocF: Fn(*mut T, usize),
-    RunAllocF: Fn(usize) -> *mut TimSortRun,
-    RunDeallocF: Fn(*mut TimSortRun, usize),
 {
     // Slices of up to this length get sorted using insertion sort.
     const MAX_INSERTION: usize = 20;
@@ -1065,10 +1059,10 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
     // shallow copies of the contents of `v` without risking the dtors running on copies if
     // `is_less` panics. When merging two sorted runs, this buffer holds a copy of the shorter run,
     // which will always have length at most `len / 2`.
-    let buf = BufGuard::new(len / 2, elem_alloc_fn, elem_dealloc_fn);
+    let buf = BufGuard::new(len / 2, alloc, dealloc);
     let buf_ptr = buf.buf_ptr.as_ptr();
 
-    let mut runs = RunVec::new(run_alloc_fn, run_dealloc_fn);
+    let mut runs = RunVec::new(alloc, dealloc);
 
     let mut end = 0;
     let mut start = 0;
@@ -1141,81 +1135,78 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
     // Extremely basic versions of Vec.
     // Their use is super limited and by having the code here, it allows reuse between the sort
     // implementations.
-    struct BufGuard<T, ElemDeallocF>
-    where
-        ElemDeallocF: Fn(*mut T, usize),
-    {
+    struct BufGuard<T> {
         buf_ptr: ptr::NonNull<T>,
         capacity: usize,
-        elem_dealloc_fn: ElemDeallocF,
+        dealloc: DeallocF,
     }
 
-    impl<T, ElemDeallocF> BufGuard<T, ElemDeallocF>
-    where
-        ElemDeallocF: Fn(*mut T, usize),
-    {
-        fn new<ElemAllocF>(
-            len: usize,
-            elem_alloc_fn: ElemAllocF,
-            elem_dealloc_fn: ElemDeallocF,
-        ) -> Self
-        where
-            ElemAllocF: Fn(usize) -> *mut T,
-        {
-            Self {
-                buf_ptr: ptr::NonNull::new(elem_alloc_fn(len)).unwrap(),
-                capacity: len,
-                elem_dealloc_fn,
+    impl<T> BufGuard<T> {
+        fn new(len: usize, alloc: AllocF, dealloc: DeallocF) -> Self {
+            // SAFETY: Creating the layout is safe as long as this is never called with len >
+            // v.len(). Alloc in general will only be used as 'shadow-region' to store temporary swap
+            // elements.
+            let buf_ptr = unsafe {
+                let layout = Layout::array::<T>(len).unwrap_unchecked();
+                ptr::NonNull::new(alloc(layout) as *mut T).unwrap()
+            };
+
+            Self { buf_ptr, capacity: len, dealloc }
+        }
+    }
+
+    impl<T> Drop for BufGuard<T> {
+        fn drop(&mut self) {
+            unsafe {
+                // SAFETY: Creating the layout is safe as long as this is called with len > v.len().
+                let layout = Layout::array::<T>(self.capacity).unwrap_unchecked();
+
+                // SAFETY: The buf_ptr was created by the corresponding alloc function with the same len.
+                (self.dealloc)(self.buf_ptr.as_ptr() as *mut u8, layout);
             }
         }
     }
 
-    impl<T, ElemDeallocF> Drop for BufGuard<T, ElemDeallocF>
-    where
-        ElemDeallocF: Fn(*mut T, usize),
-    {
-        fn drop(&mut self) {
-            (self.elem_dealloc_fn)(self.buf_ptr.as_ptr(), self.capacity);
-        }
-    }
-
-    struct RunVec<RunAllocF, RunDeallocF>
-    where
-        RunAllocF: Fn(usize) -> *mut TimSortRun,
-        RunDeallocF: Fn(*mut TimSortRun, usize),
-    {
+    struct RunVec {
         buf_ptr: ptr::NonNull<TimSortRun>,
         capacity: usize,
         len: usize,
-        run_alloc_fn: RunAllocF,
-        run_dealloc_fn: RunDeallocF,
+        alloc: AllocF,
+        dealloc: DeallocF,
     }
 
-    impl<RunAllocF, RunDeallocF> RunVec<RunAllocF, RunDeallocF>
-    where
-        RunAllocF: Fn(usize) -> *mut TimSortRun,
-        RunDeallocF: Fn(*mut TimSortRun, usize),
-    {
-        fn new(run_alloc_fn: RunAllocF, run_dealloc_fn: RunDeallocF) -> Self {
+    impl RunVec {
+        /// # Safety
+        ///
+        /// Capacity must not be an obscene length or 0.
+        unsafe fn alloc_run(alloc: AllocF, capacity: usize) -> ptr::NonNull<TimSortRun> {
+            // SAFETY: Invariants held by caller.
+            unsafe {
+                let layout = Layout::array::<TimSortRun>(capacity).unwrap_unchecked();
+                ptr::NonNull::new(alloc(layout) as *mut TimSortRun).unwrap()
+            }
+        }
+
+        fn new(alloc: AllocF, dealloc: DeallocF) -> Self {
             // Most slices can be sorted with at most 16 runs in-flight.
             const START_RUN_CAPACITY: usize = 16;
 
-            Self {
-                buf_ptr: ptr::NonNull::new(run_alloc_fn(START_RUN_CAPACITY)).unwrap(),
-                capacity: START_RUN_CAPACITY,
-                len: 0,
-                run_alloc_fn,
-                run_dealloc_fn,
-            }
+            // SAFETY: START_RUN_CAPACITY is not 0 or obscene.
+            let buf_ptr = unsafe { Self::alloc_run(alloc, START_RUN_CAPACITY) };
+
+            Self { buf_ptr, capacity: START_RUN_CAPACITY, len: 0, alloc, dealloc }
         }
 
         fn push(&mut self, val: TimSortRun) {
             if self.len == self.capacity {
                 let old_capacity = self.capacity;
+
                 let old_buf_ptr = self.buf_ptr.as_ptr();
 
                 self.capacity = self.capacity * 2;
-                self.buf_ptr = ptr::NonNull::new((self.run_alloc_fn)(self.capacity)).unwrap();
+
+                // SAFETY: Capacity is not an obscene length or 0.
+                self.buf_ptr = unsafe { Self::alloc_run(self.alloc, self.capacity) };
 
                 // SAFETY: buf_ptr new and old were correctly allocated and old_buf_ptr has
                 // old_capacity valid elements.
@@ -1223,7 +1214,11 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
                     ptr::copy_nonoverlapping(old_buf_ptr, self.buf_ptr.as_ptr(), old_capacity);
                 }
 
-                (self.run_dealloc_fn)(old_buf_ptr, old_capacity);
+                // SAFETY: old_buf_ptr was allocated previously above, with the given layout.
+                unsafe {
+                    let layout = Layout::array::<TimSortRun>(old_capacity).unwrap_unchecked();
+                    (self.dealloc)(old_buf_ptr as *mut u8, layout);
+                }
             }
 
             // SAFETY: The invariant was just checked.
@@ -1259,11 +1254,7 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
         }
     }
 
-    impl<RunAllocF, RunDeallocF> core::ops::Index<usize> for RunVec<RunAllocF, RunDeallocF>
-    where
-        RunAllocF: Fn(usize) -> *mut TimSortRun,
-        RunDeallocF: Fn(*mut TimSortRun, usize),
-    {
+    impl core::ops::Index<usize> for RunVec {
         type Output = TimSortRun;
 
         fn index(&self, index: usize) -> &Self::Output {
@@ -1278,11 +1269,7 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
         }
     }
 
-    impl<RunAllocF, RunDeallocF> core::ops::IndexMut<usize> for RunVec<RunAllocF, RunDeallocF>
-    where
-        RunAllocF: Fn(usize) -> *mut TimSortRun,
-        RunDeallocF: Fn(*mut TimSortRun, usize),
-    {
+    impl core::ops::IndexMut<usize> for RunVec {
         fn index_mut(&mut self, index: usize) -> &mut Self::Output {
             if index < self.len {
                 // SAFETY: buf_ptr and len invariant must be upheld.
@@ -1295,15 +1282,15 @@ pub fn merge_sort<T, CmpF, ElemAllocF, ElemDeallocF, RunAllocF, RunDeallocF>(
         }
     }
 
-    impl<RunAllocF, RunDeallocF> Drop for RunVec<RunAllocF, RunDeallocF>
-    where
-        RunAllocF: Fn(usize) -> *mut TimSortRun,
-        RunDeallocF: Fn(*mut TimSortRun, usize),
-    {
+    impl Drop for RunVec {
         fn drop(&mut self) {
-            // As long as TimSortRun is Copy we don't need to drop them individually but just the
-            // whole allocation.
-            (self.run_dealloc_fn)(self.buf_ptr.as_ptr(), self.capacity);
+            // As long as TimSortRun is Copy we don't need to drop them individually but just the whole allocation.
+
+            // SAFETY: buf_ptr and len invariants must be upheld
+            unsafe {
+                let layout = Layout::array::<TimSortRun>(self.capacity).unwrap_unchecked();
+                (self.dealloc)(self.buf_ptr.as_ptr() as *mut u8, layout);
+            }
         }
     }
 }
