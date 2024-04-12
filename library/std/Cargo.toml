@@ -22,7 +22,7 @@ compiler_builtins = { version = "0.1.105" }
 profiler_builtins = { path = "../profiler_builtins", optional = true }
 unwind = { path = "../unwind" }
 hashbrown = { version = "0.14", default-features = false, features = ['rustc-dep-of-std'] }
-std_detect = { path = "../stdarch/crates/std_detect", default-features = false, features = ['rustc-dep-of-std'] }
+std_detect = { path = "../stdarch/crates/std_detect", default-features = false, features = ['not-in-core', 'rustc-dep-of-std'] }
 
 # Dependencies of the `backtrace` crate
 rustc-demangle = { version = "0.1.21", features = ['rustc-dep-of-std'] }

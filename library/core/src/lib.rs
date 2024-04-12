@@ -451,6 +451,14 @@ pub mod primitive;
 #[allow(rustdoc::bare_urls)]
 mod core_arch;
 
+// Pull in the `std_detect` crate directly into core.
+//
+// Since this *doesn't* enable the `not-in-core` feature, this only exports `Feature` and the macros which try to call into core::arch::FEATURE_HOOK.
+#[path = "../../stdarch/crates/std_detect/src/detect/mod.rs"]
+#[unstable(feature = "stdarch_internal", issue = "none")]
+#[allow(missing_debug_implementations, missing_docs)]
+pub mod std_detect;
+
 #[stable(feature = "simd_arch", since = "1.27.0")]
 pub mod arch;
 
@@ -475,3 +483,9 @@ pub mod simd {
 }
 
 include!("primitive_docs.rs");
+
+/// asd
+#[unstable(feature = "stdarch_internal", issue = "none")]
+pub fn check_avx() -> bool {
+    is_x86_feature_detected!("avx")
+}
