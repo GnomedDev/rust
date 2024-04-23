@@ -1325,7 +1325,9 @@ struct OtherInner {
 /// The internal representation of a `Thread` handle.
 #[derive(Clone)]
 enum Inner {
+    /// Represents the main thread. May only be constructed by Thread::new_main.
     Main,
+    /// Represents any other thread.
     Other(Pin<Arc<OtherInner>>),
 }
 
@@ -1347,7 +1349,10 @@ impl Inner {
     fn parker(&self) -> Pin<&Parker> {
         match self {
             Self::Main => {
-                // Safety: MAIN_PARKER only ever has a mutable reference when Inner::Main is initialised.
+                // Safety: MAIN_PARKER is only ever read in this function, which requires access
+                // to an existing `&Inner` value, which can only be accessed via the main thread
+                // giving away such an instance from `current()`, implying that initialization,
+                // the only write to `MAIN_PARKER`, has been completed.
                 let static_ref: &'static MaybeUninit<Parker> = unsafe { &*MAIN_PARKER.get() };
 
                 // Safety: MAIN_PARKER is initialised when Inner::Main is initialised.
@@ -1400,8 +1405,11 @@ impl Thread {
     ///
     /// This must only ever be called once, and must be called on the main thread.
     pub(crate) unsafe fn new_main() -> Thread {
-        // Safety: Caller responsible for holding the mutable invariant and
-        // Parker::new_in_place does not read from the uninit value.
+        // Safety: As this is only called once and on the main thread, nothing else is accessing MAIN_PARKER
+        // as the only other read occurs in Inner::parker *after* Inner::Main has been constructed,
+        // and this function is the only one that constructs Inner::Main.
+        //
+        // Pre-main thread spawning cannot hit this either, as the caller promises that this is only called on the main thread.
         unsafe { Parker::new_in_place(MAIN_PARKER.get().cast()) }
 
         Self(Inner::Main)
