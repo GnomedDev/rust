@@ -629,11 +629,11 @@ pub(crate) struct FormatUnusedArgs {
 
 #[derive(Diagnostic)]
 #[diag(builtin_macros_format_pos_mismatch)]
-pub(crate) struct FormatPositionalMismatch {
+pub(crate) struct FormatPositionalMismatch<'a> {
     #[primary_span]
     pub(crate) span: MultiSpan,
     pub(crate) n: usize,
-    pub(crate) desc: String,
+    pub(crate) desc: &'a str,
     #[subdiagnostic]
     pub(crate) highlight: SingleLabelManySpans,
 }

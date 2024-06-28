@@ -389,8 +389,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 if expr.span == sp {
                     return self.get_fn_decl(hir_id).map(|(_, fn_decl, _)| {
                         let (ty, span) = match fn_decl.output {
-                            hir::FnRetTy::DefaultReturn(span) => ("()".to_string(), span),
-                            hir::FnRetTy::Return(ty) => (ty_to_string(&self.tcx, ty), ty.span),
+                            hir::FnRetTy::DefaultReturn(span) => ("()", span),
+                            hir::FnRetTy::Return(ty) => (&*ty_to_string(&self.tcx, ty), ty.span),
                         };
                         (span, format!("expected `{ty}` because of this return type"))
                     });

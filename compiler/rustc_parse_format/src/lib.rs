@@ -474,25 +474,25 @@ impl<'a> Parser<'a> {
             }
 
             pos = peek_pos;
-            description = format!("expected `'}}'`, found `{maybe:?}`");
+            description = format!("expected `'}}'`, found `{maybe:?}`").into();
         } else {
-            description = "expected `'}'` but string was terminated".to_owned();
+            description = "expected `'}'` but string was terminated".into();
             // point at closing `"`
             pos = self.input.len() - if self.append_newline { 1 } else { 0 };
         }
 
         let pos = self.to_span_index(pos);
 
-        let label = "expected `'}'`".to_owned();
+        let label = "expected `'}'`".into();
         let (note, secondary_label) = if arg.format.fill == Some('}') {
             (
-                Some("the character `'}'` is interpreted as a fill character because of the `:` that precedes it".to_owned()),
-                arg.format.fill_span.map(|sp| ("this is not interpreted as a formatting closing brace".to_owned(), sp)),
+                Some("the character `'}'` is interpreted as a fill character because of the `:` that precedes it".into()),
+                arg.format.fill_span.map(|sp| ("this is not interpreted as a formatting closing brace".into(), sp)),
             )
         } else {
             (
-                Some("if you intended to print `{`, you can escape it using `{{`".to_owned()),
-                self.last_opening_brace.map(|sp| ("because of this opening brace".to_owned(), sp)),
+                Some("if you intended to print `{`, you can escape it using `{{`".into()),
+                self.last_opening_brace.map(|sp| ("because of this opening brace".into(), sp)),
             )
         };
 
@@ -874,9 +874,9 @@ impl<'a> Parser<'a> {
             self.errors.insert(
                 0,
                 ParseError {
-                    description: "expected format parameter to occur after `:`".to_owned(),
-                    note: Some(format!("`?` comes after `:`, try `{}:{}` instead", word, "?")),
-                    label: "expected `?` to occur after `:`".to_owned(),
+                    description: "expected format parameter to occur after `:`".into(),
+                    note: Some(format!("`?` comes after `:`, try `{word}:?` instead").into()),
+                    label: "expected `?` to occur after `:`".into(),
                     span: pos.to(pos),
                     secondary_label: None,
                     suggestion: Suggestion::None,
@@ -891,9 +891,9 @@ impl<'a> Parser<'a> {
             self.errors.insert(
                 0,
                 ParseError {
-                    description: "expected format parameter to occur after `:`".to_owned(),
+                    description: "expected format parameter to occur after `:`".into(),
                     note: None,
-                    label: format!("expected `{}` to occur after `:`", alignment),
+                    label: format!("expected `{}` to occur after `:`", alignment).into(),
                     span: pos.to(pos),
                     secondary_label: None,
                     suggestion: Suggestion::None,
@@ -918,9 +918,9 @@ impl<'a> Parser<'a> {
                         self.errors.insert(
                             0,
                             ParseError {
-                                description: "field access isn't supported".to_string(),
+                                description: "field access isn't supported".into(),
                                 note: None,
-                                label: "not supported".to_string(),
+                                label: "not supported".into(),
                                 span: InnerSpan::new(
                                     arg.position_span.start,
                                     field.position_span.end,
@@ -934,9 +934,9 @@ impl<'a> Parser<'a> {
                         self.errors.insert(
                             0,
                             ParseError {
-                                description: "tuple index access isn't supported".to_string(),
+                                description: "tuple index access isn't supported".into(),
                                 note: None,
-                                label: "not supported".to_string(),
+                                label: "not supported".into(),
                                 span: InnerSpan::new(
                                     arg.position_span.start,
                                     field.position_span.end,

@@ -105,7 +105,7 @@ pub fn report_unstable(
     feature: Symbol,
     reason: Option<Symbol>,
     issue: Option<NonZero<u32>>,
-    suggestion: Option<(Span, String, String, Applicability)>,
+    suggestion: Option<(Span, &'static str, String, Applicability)>,
     is_soft: bool,
     span: Span,
     soft_handler: impl FnOnce(&'static Lint, Span, String),
@@ -141,21 +141,21 @@ pub struct DeprecationSuggestion {
     #[primary_span]
     pub span: Span,
 
-    pub kind: String,
+    pub kind: &'static str,
     pub suggestion: Symbol,
 }
 
-pub struct Deprecated {
+pub struct Deprecated<'a> {
     pub sub: Option<DeprecationSuggestion>,
 
     // FIXME: make this translatable
-    pub kind: String,
+    pub kind: &'a str,
     pub path: String,
     pub note: Option<Symbol>,
     pub since_kind: DeprecatedSinceKind,
 }
 
-impl<'a, G: EmissionGuarantee> rustc_errors::LintDiagnostic<'a, G> for Deprecated {
+impl<'a, G: EmissionGuarantee> rustc_errors::LintDiagnostic<'a, G> for Deprecated<'_> {
     fn decorate_lint<'b>(self, diag: &'b mut Diag<'a, G>) {
         diag.primary_message(match &self.since_kind {
             DeprecatedSinceKind::InEffect => crate::fluent_generated::middle_deprecated,
@@ -243,10 +243,10 @@ fn late_report_deprecation(
     let diag = Deprecated {
         sub: suggestion.map(|suggestion| DeprecationSuggestion {
             span: method_span,
-            kind: def_kind.to_owned(),
+            kind: def_kind,
             suggestion,
         }),
-        kind: def_kind.to_owned(),
+        kind: def_kind,
         path: def_path,
         note: depr.note,
         since_kind: deprecated_since_kind(is_in_effect, depr.since),
@@ -265,7 +265,7 @@ pub enum EvalResult {
         feature: Symbol,
         reason: Option<Symbol>,
         issue: Option<NonZero<u32>>,
-        suggestion: Option<(Span, String, String, Applicability)>,
+        suggestion: Option<(Span, &'static str, String, Applicability)>,
         is_soft: bool,
     },
     /// The item does not have the `#[stable]` or `#[unstable]` marker assigned.
@@ -294,7 +294,7 @@ fn suggestion_for_allocator_api(
     def_id: DefId,
     span: Span,
     feature: Symbol,
-) -> Option<(Span, String, String, Applicability)> {
+) -> Option<(Span, &'static str, String, Applicability)> {
     if feature == sym::allocator_api {
         if let Some(trait_) = tcx.opt_parent(def_id) {
             if tcx.is_diagnostic_item(sym::Vec, trait_) {
@@ -303,7 +303,7 @@ fn suggestion_for_allocator_api(
                 if let Ok(snippet) = sm.span_to_snippet(inner_types) {
                     return Some((
                         inner_types,
-                        "consider wrapping the inner types in tuple".to_string(),
+                        "consider wrapping the inner types in tuple",
                         format!("({snippet})"),
                         Applicability::MaybeIncorrect,
                     ));

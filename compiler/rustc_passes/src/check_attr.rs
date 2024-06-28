@@ -465,10 +465,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 let hir::GenericParamKind::Type { .. } = p.kind else { continue };
                 let default = tcx.object_lifetime_default(p.def_id);
                 let repr = match default {
-                    ObjectLifetimeDefault::Empty => "BaseDefault".to_owned(),
-                    ObjectLifetimeDefault::Static => "'static".to_owned(),
-                    ObjectLifetimeDefault::Param(def_id) => tcx.item_name(def_id).to_string(),
-                    ObjectLifetimeDefault::Ambiguous => "Ambiguous".to_owned(),
+                    ObjectLifetimeDefault::Empty => "BaseDefault",
+                    ObjectLifetimeDefault::Static => "'static",
+                    ObjectLifetimeDefault::Param(def_id) => &tcx.item_name(def_id).to_string(),
+                    ObjectLifetimeDefault::Ambiguous => "Ambiguous",
                 };
                 tcx.dcx().emit_err(errors::ObjectLifetimeErr { span: p.span, repr });
             }

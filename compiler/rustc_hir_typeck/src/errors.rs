@@ -536,7 +536,7 @@ pub struct CandidateTraitNote {
     pub span: Span,
     pub trait_name: String,
     pub item_name: Ident,
-    pub action_or_ty: String,
+    pub action_or_ty: Cow<'static, str>,
 }
 
 #[derive(Diagnostic)]

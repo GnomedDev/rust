@@ -585,7 +585,11 @@ impl UseSpans<'_> {
 
     /// Add a span label to the arguments of the closure, if it exists.
     #[allow(rustc::diagnostic_outside_of_impl)]
-    pub(super) fn args_subdiag(self, err: &mut Diag<'_>, f: impl FnOnce(Span) -> CaptureArgLabel) {
+    pub(super) fn args_subdiag<'a>(
+        self,
+        err: &mut Diag<'_>,
+        f: impl FnOnce(Span) -> CaptureArgLabel<'a>,
+    ) {
         if let UseSpans::ClosureUse { args_span, .. } = self {
             err.subdiagnostic(f(args_span));
         }
@@ -1012,17 +1016,17 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
             maybe_reinitialized_locations_is_empty,
         } = msg_opt;
         if let UseSpans::FnSelfUse { var_span, fn_call_span, fn_span, kind } = move_spans {
-            let place_name = self
-                .describe_place(moved_place.as_ref())
-                .map(|n| format!("`{n}`"))
-                .unwrap_or_else(|| "value".to_owned());
+            let place_name = match self.describe_place(moved_place.as_ref()) {
+                Some(n) => &format!("`{n}`"),
+                None => "value",
+            };
             match kind {
                 CallKind::FnCall { fn_trait_id, self_ty }
                     if self.infcx.tcx.is_lang_item(fn_trait_id, LangItem::FnOnce) =>
                 {
                     err.subdiagnostic(CaptureReasonLabel::Call {
                         fn_call_span,
-                        place_name: &place_name,
+                        place_name,
                         is_partial,
                         is_loop_message,
                     });
@@ -1101,7 +1105,7 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
                     let self_arg = self_arg.unwrap();
                     err.subdiagnostic(CaptureReasonLabel::OperatorUse {
                         fn_call_span,
-                        place_name: &place_name,
+                        place_name,
                         is_partial,
                         is_loop_message,
                     });
@@ -1134,7 +1138,7 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
                         let func = tcx.def_path_str(method_did);
                         err.subdiagnostic(CaptureReasonNote::FuncTakeSelf {
                             func,
-                            place_name: place_name.clone(),
+                            place_name,
                             span: self_arg.span,
                         });
                     }
@@ -1172,7 +1176,7 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
 
                         err.subdiagnostic(CaptureReasonLabel::ImplicitCall {
                             fn_call_span,
-                            place_name: &place_name,
+                            place_name,
                             is_partial,
                             is_loop_message,
                         });
@@ -1201,14 +1205,14 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
                         if let Some((CallDesugaringKind::Await, _)) = desugaring {
                             err.subdiagnostic(CaptureReasonLabel::Await {
                                 fn_call_span,
-                                place_name: &place_name,
+                                place_name,
                                 is_partial,
                                 is_loop_message,
                             });
                         } else {
                             err.subdiagnostic(CaptureReasonLabel::MethodCall {
                                 fn_call_span,
-                                place_name: &place_name,
+                                place_name,
                                 is_partial,
                                 is_loop_message,
                             });

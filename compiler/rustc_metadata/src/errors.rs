@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     io::Error,
     path::{Path, PathBuf},
 };
@@ -622,7 +623,7 @@ pub struct CannotFindCrate {
     pub crate_name: Symbol,
     pub add_info: String,
     pub missing_core: bool,
-    pub current_crate: String,
+    pub current_crate: Cow<'static, str>,
     pub is_nightly_build: bool,
     pub profiler_runtime: Symbol,
     pub locator_triple: TargetTriple,

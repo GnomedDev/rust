@@ -62,7 +62,10 @@ impl<G: EmissionGuarantee> Diagnostic<'_, G> for NegativePositiveConflict<'_> {
     fn into_diag(self, dcx: DiagCtxtHandle<'_>, level: Level) -> Diag<'_, G> {
         let mut diag = Diag::new(dcx, level, fluent::trait_selection_negative_positive_conflict);
         diag.arg("trait_desc", self.trait_desc.print_only_trait_path().to_string());
-        diag.arg("self_desc", self.self_ty.map_or_else(|| "none".to_string(), |ty| ty.to_string()));
+        match self.self_ty {
+            Some(ty) => diag.arg("self_desc", ty.to_string()),
+            None => diag.arg("self_desc", "none"),
+        };
         diag.span(self.impl_span);
         diag.code(E0751);
         match self.negative_impl_span {
@@ -71,7 +74,7 @@ impl<G: EmissionGuarantee> Diagnostic<'_, G> for NegativePositiveConflict<'_> {
             }
             Err(cname) => {
                 diag.note(fluent::trait_selection_negative_implementation_in_crate);
-                diag.arg("negative_impl_cname", cname.to_string());
+                diag.arg("negative_impl_cname", cname.as_str());
             }
         }
         match self.positive_impl_span {
@@ -80,7 +83,7 @@ impl<G: EmissionGuarantee> Diagnostic<'_, G> for NegativePositiveConflict<'_> {
             }
             Err(cname) => {
                 diag.note(fluent::trait_selection_positive_implementation_in_crate);
-                diag.arg("positive_impl_cname", cname.to_string());
+                diag.arg("positive_impl_cname", cname.as_str());
             }
         }
         diag

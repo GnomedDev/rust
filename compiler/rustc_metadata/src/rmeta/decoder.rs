@@ -750,12 +750,7 @@ impl MetadataBlob {
     ) -> io::Result<()> {
         let root = self.get_root();
 
-        let all_ls_kinds = vec![
-            "root".to_owned(),
-            "lang_items".to_owned(),
-            "features".to_owned(),
-            "items".to_owned(),
-        ];
+        let all_ls_kinds = ["root", "lang_items", "features", "items"].map(str::to_string);
         let ls_kinds = if ls_kinds.contains(&"all".to_owned()) { &all_ls_kinds } else { ls_kinds };
 
         for kind in ls_kinds {

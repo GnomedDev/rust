@@ -863,8 +863,8 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
             let lifetime = if f.has_name() { fr_name.name } else { kw::UnderscoreLifetime };
 
             let arg = match param.param.pat.simple_ident() {
-                Some(simple_ident) => format!("argument `{simple_ident}`"),
-                None => "the argument".to_string(),
+                Some(simple_ident) => &format!("argument `{simple_ident}`"),
+                None => "the argument",
             };
             let captures = format!("captures data from {arg}");
 
@@ -873,7 +873,7 @@ impl<'tcx> MirBorrowckCtxt<'_, '_, '_, 'tcx> {
                     self.infcx.tcx,
                     diag,
                     fn_returns,
-                    lifetime.to_string(),
+                    lifetime.as_str(),
                     Some(arg),
                     captures,
                     Some((param.param_ty_span, param.param_ty.to_string())),
