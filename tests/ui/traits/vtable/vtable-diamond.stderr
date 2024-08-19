@@ -1,12 +1,12 @@
 error: vtable entries for `<S as D>`: [
-           MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
            Method(<S as A>::foo_a),
            Method(<S as B>::foo_b),
            Method(<S as C>::foo_c),
            TraitVPtr(<S as C>),
            Method(<S as D>::foo_d),
+           MetadataDropInPlace,
+           MetadataSize,
+           MetadataAlign,
        ]
   --> $DIR/vtable-diamond.rs:21:1
    |
@@ -14,11 +14,11 @@ LL | trait D: B + C {
    | ^^^^^^^^^^^^^^
 
 error: vtable entries for `<S as C>`: [
+           Method(<S as A>::foo_a),
+           Method(<S as C>::foo_c),
            MetadataDropInPlace,
            MetadataSize,
            MetadataAlign,
-           Method(<S as A>::foo_a),
-           Method(<S as C>::foo_c),
        ]
   --> $DIR/vtable-diamond.rs:15:1
    |

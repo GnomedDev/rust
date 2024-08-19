@@ -28,6 +28,7 @@ pub fn size_and_align_of_dst<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
             let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), predicates.principal());
             let align_index = metadata_index + ty::VTABLE_ALIGN_OFFSET;
             let size_index = metadata_index + ty::VTABLE_SIZE_OFFSET;
+            println!("Meta index for {t} is {metadata_index}, making size/align {size_index}/{align_index}");
 
             // Load size/align from vtable.
             let vtable = info.unwrap();

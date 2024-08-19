@@ -47,12 +47,13 @@ pub const VTABLE_DROPINPLACE_OFFSET: usize = 0;
 pub const VTABLE_SIZE_OFFSET: usize = 1;
 pub const VTABLE_ALIGN_OFFSET: usize = 2;
 
-#[allow(warnings)]
 pub fn get_vtable_metadata_index<'tcx>(
     tcx: TyCtxt<'tcx>,
     trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
 ) -> usize {
-    0
+    let entry_count = vtable_min_entries(tcx, trait_ref);
+    let meta_index = (entry_count - TyCtxt::COMMON_VTABLE_ENTRIES.len()) + 1;
+    meta_index
 }
 
 // Note that we don't have access to a self type here, this has to be purely based on the trait (and
