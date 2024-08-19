@@ -525,7 +525,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let (maybe_null, drop_fn, fn_abi, drop_instance) = match ty.kind() {
             // FIXME(eddyb) perhaps move some of this logic into
             // `Instance::resolve_drop_in_place`?
-            ty::Dynamic(_, _, ty::Dyn) => {
+            ty::Dynamic(predicates, _, ty::Dyn) => {
                 // IN THIS ARM, WE HAVE:
                 // ty = *mut (dyn Trait)
                 // which is: exists<T> ( *mut T,    Vtable<T: Trait> )
@@ -538,7 +538,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 //                | ...   |
                 //                \-------/
                 //
-                let drop_index = ty::COMMON_VTABLE_ENTRIES_DROPINPLACE;
+                let trait_ref = predicates.principal();
+                let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), trait_ref);
+                let drop_index = metadata_index + ty::VTABLE_DROPINPLACE_OFFSET;
                 let virtual_drop = Instance {
                     def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,
@@ -558,7 +560,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     virtual_drop,
                 )
             }
-            ty::Dynamic(_, _, ty::DynStar) => {
+            ty::Dynamic(predicates, _, ty::DynStar) => {
                 // IN THIS ARM, WE HAVE:
                 // ty = *mut (dyn* Trait)
                 // which is: *mut exists<T: sizeof(T) == sizeof(usize)> (T, Vtable<T: Trait>)
@@ -581,7 +583,10 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 // (data, vtable)          // an equivalent Rust `*mut dyn Trait`
                 //
                 // SO THEN WE CAN USE THE ABOVE CODE.
-                let drop_index = ty::COMMON_VTABLE_ENTRIES_DROPINPLACE;
+                let trait_ref = predicates.principal();
+                let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), trait_ref);
+                let drop_index = metadata_index + ty::VTABLE_DROPINPLACE_OFFSET;
+
                 let virtual_drop = Instance {
                     def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,

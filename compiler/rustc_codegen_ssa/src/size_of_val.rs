@@ -24,13 +24,15 @@ pub fn size_and_align_of_dst<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
         return (size, align);
     }
     match t.kind() {
-        ty::Dynamic(..) => {
+        ty::Dynamic(predicates, _, _) => {
+            let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), predicates.principal());
+            let align_index = metadata_index + ty::VTABLE_ALIGN_OFFSET;
+            let size_index = metadata_index + ty::VTABLE_SIZE_OFFSET;
+
             // Load size/align from vtable.
             let vtable = info.unwrap();
-            let size = meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_SIZE)
-                .get_usize(bx, vtable);
-            let align = meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_ALIGN)
-                .get_usize(bx, vtable);
+            let size = meth::VirtualIndex::from_index(size_index).get_usize(bx, vtable);
+            let align = meth::VirtualIndex::from_index(align_index).get_usize(bx, vtable);
 
             // Size is always <= isize::MAX.
             let size_bound = bx.data_layout().ptr_sized_integer().signed_max() as u128;

@@ -119,11 +119,13 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 let (_, llalign) = size_of_val::size_and_align_of_dst(bx, tp_ty, meta);
                 llalign
             }
+            #[allow(unreachable_code)]
             sym::vtable_size | sym::vtable_align => {
+                bug!("Unimplemented");
                 let vtable = args[0].immediate();
                 let idx = match name {
-                    sym::vtable_size => ty::COMMON_VTABLE_ENTRIES_SIZE,
-                    sym::vtable_align => ty::COMMON_VTABLE_ENTRIES_ALIGN,
+                    sym::vtable_size => 0,
+                    sym::vtable_align => 0,
                     _ => bug!(),
                 };
                 let value = meth::VirtualIndex::from_index(idx).get_usize(bx, vtable);
