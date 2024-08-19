@@ -186,15 +186,23 @@ impl<Dyn: ?Sized> DynMetadata<Dyn> {
         // Note that "size stored in vtable" is *not* the same as "result of size_of_val_raw".
         // Consider a reference like `&(i32, dyn Send)`: the vtable will only store the size of the
         // `Send` part!
+        #[cfg(bootstrap)]
         // SAFETY: DynMetadata always contains a valid vtable pointer
         return unsafe { crate::intrinsics::vtable_size(self.vtable_ptr() as *const ()) };
+        #[cfg(not(bootstrap))]
+        // SAFETY: DynMetadata always contains a valid vtable pointer
+        return unsafe { crate::intrinsics::vtable_size::<Dyn>(self.vtable_ptr() as *const ()) };
     }
 
     /// Returns the alignment of the type associated with this vtable.
     #[inline]
     pub fn align_of(self) -> usize {
+        #[cfg(bootstrap)]
         // SAFETY: DynMetadata always contains a valid vtable pointer
         return unsafe { crate::intrinsics::vtable_align(self.vtable_ptr() as *const ()) };
+        #[cfg(not(bootstrap))]
+        // SAFETY: DynMetadata always contains a valid vtable pointer
+        return unsafe { crate::intrinsics::vtable_align::<Dyn>(self.vtable_ptr() as *const ()) };
     }
 
     /// Returns the size and alignment together as a `Layout`

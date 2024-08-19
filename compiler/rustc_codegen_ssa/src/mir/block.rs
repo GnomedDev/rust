@@ -525,7 +525,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let (maybe_null, drop_fn, fn_abi, drop_instance) = match ty.kind() {
             // FIXME(eddyb) perhaps move some of this logic into
             // `Instance::resolve_drop_in_place`?
-            ty::Dynamic(_, _, ty::Dyn) => {
+            ty::Dynamic(predicates, _, ty::Dyn) => {
                 // IN THIS ARM, WE HAVE:
                 // ty = *mut (dyn Trait)
                 // which is: exists<T> ( *mut T,    Vtable<T: Trait> )
@@ -538,8 +538,11 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 //                | ...   |
                 //                \-------/
                 //
+                let trait_ref = predicates.principal();
+                let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), trait_ref);
+                let drop_index = metadata_index + ty::VTABLE_DROPINPLACE_OFFSET;
                 let virtual_drop = Instance {
-                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), 0), // idx 0: the drop function
+                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,
                 };
                 debug!("ty = {:?}", ty);
@@ -551,13 +554,13 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 args = &args[..1];
                 (
                     true,
-                    meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_DROPINPLACE)
+                    meth::VirtualIndex::from_index(drop_index)
                         .get_optional_fn(bx, vtable, ty, fn_abi),
                     fn_abi,
                     virtual_drop,
                 )
             }
-            ty::Dynamic(_, _, ty::DynStar) => {
+            ty::Dynamic(predicates, _, ty::DynStar) => {
                 // IN THIS ARM, WE HAVE:
                 // ty = *mut (dyn* Trait)
                 // which is: *mut exists<T: sizeof(T) == sizeof(usize)> (T, Vtable<T: Trait>)
@@ -580,8 +583,12 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 // (data, vtable)          // an equivalent Rust `*mut dyn Trait`
                 //
                 // SO THEN WE CAN USE THE ABOVE CODE.
+                let trait_ref = predicates.principal();
+                let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), trait_ref);
+                let drop_index = metadata_index + ty::VTABLE_DROPINPLACE_OFFSET;
+
                 let virtual_drop = Instance {
-                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), 0), // idx 0: the drop function
+                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,
                 };
                 debug!("ty = {:?}", ty);
@@ -595,8 +602,12 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 debug!("args' = {:?}", args);
                 (
                     true,
-                    meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_DROPINPLACE)
-                        .get_optional_fn(bx, meta.immediate(), ty, fn_abi),
+                    meth::VirtualIndex::from_index(drop_index).get_optional_fn(
+                        bx,
+                        meta.immediate(),
+                        ty,
+                        fn_abi,
+                    ),
                     fn_abi,
                     virtual_drop,
                 )

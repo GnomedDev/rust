@@ -120,12 +120,20 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 llalign
             }
             sym::vtable_size | sym::vtable_align => {
+                let tp_ty = fn_args.type_at(0);
                 let vtable = args[0].immediate();
-                let idx = match name {
-                    sym::vtable_size => ty::COMMON_VTABLE_ENTRIES_SIZE,
-                    sym::vtable_align => ty::COMMON_VTABLE_ENTRIES_ALIGN,
+
+                let ty::Dynamic(predicates, ..) = tp_ty.kind() else {
+                    bug!("vtable_size or vtable_align called with non-dyn type");
+                };
+
+                let mut idx = ty::get_vtable_metadata_index(bx.tcx(), predicates.principal());
+                idx += match name {
+                    sym::vtable_size => ty::VTABLE_SIZE_OFFSET,
+                    sym::vtable_align => ty::VTABLE_SIZE_OFFSET,
                     _ => bug!(),
                 };
+
                 let value = meth::VirtualIndex::from_index(idx).get_usize(bx, vtable);
                 match name {
                     // Size is always <= isize::MAX.

@@ -4,7 +4,7 @@
 //@run-pass
 
 #[rustc_intrinsic]
-pub unsafe fn vtable_size(_ptr: *const ()) -> usize {
+pub unsafe fn vtable_size<Dyn: ?Sized>(_ptr: *const ()) -> usize {
     panic!();
 }
 
@@ -15,6 +15,6 @@ fn main() {
     let x: &dyn Trait = &();
     unsafe {
         let (_data, vtable): (*const (), *const ()) = core::mem::transmute(x);
-        assert_eq!(vtable_size(vtable), 0);
+        assert_eq!(vtable_size::<dyn Trait>(vtable), 0);
     }
 }

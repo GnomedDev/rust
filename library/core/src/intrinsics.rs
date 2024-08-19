@@ -3007,7 +3007,7 @@ pub const unsafe fn const_deallocate(_ptr: *mut u8, _size: usize, _align: usize)
 #[unstable(feature = "core_intrinsics", issue = "none")]
 #[rustc_intrinsic]
 #[rustc_intrinsic_must_be_overridden]
-pub unsafe fn vtable_size(_ptr: *const ()) -> usize {
+pub unsafe fn vtable_size<#[cfg(not(bootstrap))] Dyn: ?Sized>(_ptr: *const ()) -> usize {
     unreachable!()
 }
 
@@ -3020,7 +3020,7 @@ pub unsafe fn vtable_size(_ptr: *const ()) -> usize {
 #[unstable(feature = "core_intrinsics", issue = "none")]
 #[rustc_intrinsic]
 #[rustc_intrinsic_must_be_overridden]
-pub unsafe fn vtable_align(_ptr: *const ()) -> usize {
+pub unsafe fn vtable_align<#[cfg(not(bootstrap))] Dyn: ?Sized>(_ptr: *const ()) -> usize {
     unreachable!()
 }
 
