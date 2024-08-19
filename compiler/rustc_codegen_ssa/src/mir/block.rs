@@ -538,8 +538,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 //                | ...   |
                 //                \-------/
                 //
+                let drop_index = ty::COMMON_VTABLE_ENTRIES_DROPINPLACE;
                 let virtual_drop = Instance {
-                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), 0), // idx 0: the drop function
+                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,
                 };
                 debug!("ty = {:?}", ty);
@@ -551,7 +552,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 args = &args[..1];
                 (
                     true,
-                    meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_DROPINPLACE)
+                    meth::VirtualIndex::from_index(drop_index)
                         .get_optional_fn(bx, vtable, ty, fn_abi),
                     fn_abi,
                     virtual_drop,
@@ -580,8 +581,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 // (data, vtable)          // an equivalent Rust `*mut dyn Trait`
                 //
                 // SO THEN WE CAN USE THE ABOVE CODE.
+                let drop_index = ty::COMMON_VTABLE_ENTRIES_DROPINPLACE;
                 let virtual_drop = Instance {
-                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), 0), // idx 0: the drop function
+                    def: ty::InstanceKind::Virtual(drop_fn.def_id(), drop_index),
                     args: drop_fn.args,
                 };
                 debug!("ty = {:?}", ty);
@@ -595,8 +597,12 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 debug!("args' = {:?}", args);
                 (
                     true,
-                    meth::VirtualIndex::from_index(ty::COMMON_VTABLE_ENTRIES_DROPINPLACE)
-                        .get_optional_fn(bx, meta.immediate(), ty, fn_abi),
+                    meth::VirtualIndex::from_index(drop_index).get_optional_fn(
+                        bx,
+                        meta.immediate(),
+                        ty,
+                        fn_abi,
+                    ),
                     fn_abi,
                     virtual_drop,
                 )
