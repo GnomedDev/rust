@@ -47,12 +47,11 @@ pub const VTABLE_DROPINPLACE_OFFSET: usize = 0;
 pub const VTABLE_SIZE_OFFSET: usize = 1;
 pub const VTABLE_ALIGN_OFFSET: usize = 2;
 
-#[allow(warnings)]
 pub fn get_vtable_metadata_index<'tcx>(
     tcx: TyCtxt<'tcx>,
     trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
 ) -> usize {
-    0
+    count_vtable_entries(tcx, trait_ref) - TyCtxt::COMMON_VTABLE_ENTRIES.len()
 }
 
 pub(crate) fn count_vtable_entries<'tcx>(

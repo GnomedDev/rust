@@ -80,9 +80,6 @@ fn prepare_vtable_segments_inner<'tcx, T>(
     //  H, H-vptr, I, I-vptr, J, J-vptr, K, K-vptr, L, L-vptr, M, M-vptr,
     //  N, N-vptr, O
 
-    // emit dsa segment first.
-    segment_visitor(VtblSegment::MetadataDSA)?;
-
     let mut emit_vptr_on_new_entry = false;
     let mut visited = PredicateSet::new(tcx);
     let predicate = trait_ref.upcast(tcx);
@@ -177,7 +174,8 @@ fn prepare_vtable_segments_inner<'tcx, T>(
             }
         }
 
-        // the stack is empty, all done
+        // the stack is empty, all done, just gotta emit the dsa segment.
+        segment_visitor(VtblSegment::MetadataDSA)?;
         return ControlFlow::Continue(());
     }
 }

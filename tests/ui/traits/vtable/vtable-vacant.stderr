@@ -1,11 +1,11 @@
 error: vtable entries for `<S as B>`: [
-           MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
            Method(<S as A>::foo_a1),
            Vacant,
            Method(<S as B>::foo_b1),
            Vacant,
+           MetadataDropInPlace,
+           MetadataSize,
+           MetadataAlign,
        ]
   --> $DIR/vtable-vacant.rs:14:1
    |
