@@ -1299,6 +1299,10 @@ rustc_queries! {
         desc { |tcx| "finding all vtable entries for trait `{}`", tcx.def_path_str(key.def_id()) }
     }
 
+    query count_vtable_entries(key: ty::PolyExistentialTraitRef<'tcx>) -> usize {
+        desc { |tcx| "counting the vtable entries for trait `{}`", tcx.def_path_str(key.def_id()) }
+    }
+
     query first_method_vtable_slot(key: ty::TraitRef<'tcx>) -> usize {
         desc { |tcx| "finding the slot within the vtable of `{}` for the implementation of `{}`", key.self_ty(), key.print_only_trait_name() }
     }

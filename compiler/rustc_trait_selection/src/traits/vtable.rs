@@ -319,6 +319,37 @@ fn vtable_entries<'tcx>(
     tcx.arena.alloc_from_iter(entries)
 }
 
+// Note that we don't have access to a self type here, this has to be purely based on the trait (and
+// supertrait) definitions. That means we can't call into the same vtable_entries code since that
+// returns a specific instantiation (e.g., with Vacant slots when bounds aren't satisfied).
+//
+// This has to be correct though, as assertions check, so we reuse the same machinery.
+fn count_vtable_entries<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    existential_trait_ref: ty::PolyExistentialTraitRef<'tcx>,
+) -> usize {
+    let mut vtable_entry_count = 0;
+    let vtable_segment_callback = |segment| {
+        match segment {
+            VtblSegment::MetadataDSA => vtable_entry_count += TyCtxt::COMMON_VTABLE_ENTRIES.len(),
+            VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
+                let own_existential_entries =
+                    tcx.own_existential_vtable_entries(trait_ref.def_id());
+                vtable_entry_count += own_existential_entries.len();
+                vtable_entry_count += usize::from(emit_vptr);
+            }
+        };
+
+        ControlFlow::Continue(())
+    };
+
+    // HACK: `prepare_vtable_segments` doesn't need a real `PolyTraitRef`, for now we can fake it with the unit type.
+    let trait_ref = existential_trait_ref.with_self_ty(tcx, tcx.types.unit);
+    let _ = prepare_vtable_segments::<()>(tcx, trait_ref, vtable_segment_callback);
+
+    vtable_entry_count
+}
+
 // Given a `dyn Subtrait: Supertrait` trait ref, find corresponding first slot
 // for `Supertrait`'s methods in the vtable of `Subtrait`.
 pub(crate) fn first_method_vtable_slot<'tcx>(tcx: TyCtxt<'tcx>, key: ty::TraitRef<'tcx>) -> usize {
@@ -430,6 +461,7 @@ pub(super) fn provide(providers: &mut Providers) {
     *providers = Providers {
         own_existential_vtable_entries,
         vtable_entries,
+        count_vtable_entries,
         first_method_vtable_slot,
         supertrait_vtable_slot,
         ..*providers

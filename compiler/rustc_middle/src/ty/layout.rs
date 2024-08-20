@@ -837,7 +837,7 @@ where
                     }
 
                     let mk_dyn_vtable = |principal: Option<ty::PolyExistentialTraitRef<'tcx>>| {
-                        let min_count = ty::vtable_min_entries(tcx, principal);
+                        let min_count = ty::count_vtable_entries(tcx, principal);
                         Ty::new_imm_ref(
                             tcx,
                             tcx.lifetimes.re_static,

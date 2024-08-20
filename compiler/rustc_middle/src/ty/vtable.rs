@@ -47,28 +47,14 @@ pub const COMMON_VTABLE_ENTRIES_DROPINPLACE: usize = 0;
 pub const COMMON_VTABLE_ENTRIES_SIZE: usize = 1;
 pub const COMMON_VTABLE_ENTRIES_ALIGN: usize = 2;
 
-// Note that we don't have access to a self type here, this has to be purely based on the trait (and
-// supertrait) definitions. That means we can't call into the same vtable_entries code since that
-// returns a specific instantiation (e.g., with Vacant slots when bounds aren't satisfied). The goal
-// here is to do a best-effort approximation without duplicating a lot of code.
-//
-// This function is used in layout computation for e.g. &dyn Trait, so it's critical that this
-// function is an accurate approximation. We verify this when actually computing the vtable below.
-pub(crate) fn vtable_min_entries<'tcx>(
+pub(crate) fn count_vtable_entries<'tcx>(
     tcx: TyCtxt<'tcx>,
     trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
 ) -> usize {
-    let mut count = TyCtxt::COMMON_VTABLE_ENTRIES.len();
-    let Some(trait_ref) = trait_ref else {
-        return count;
-    };
-
-    // This includes self in supertraits.
-    for def_id in tcx.supertrait_def_ids(trait_ref.def_id()) {
-        count += tcx.own_existential_vtable_entries(def_id).len();
+    match trait_ref {
+        Some(trait_ref) => tcx.count_vtable_entries(trait_ref),
+        None => TyCtxt::COMMON_VTABLE_ENTRIES.len(),
     }
-
-    count
 }
 
 /// Retrieves an allocation that represents the contents of a vtable.
@@ -93,8 +79,9 @@ pub(super) fn vtable_allocation_provider<'tcx>(
         TyCtxt::COMMON_VTABLE_ENTRIES
     };
 
-    // This confirms that the layout computation for &dyn Trait has an accurate sizing.
-    assert!(vtable_entries.len() >= vtable_min_entries(tcx, poly_trait_ref));
+    // This confirms that both the layout computation for &dyn Trait and
+    // the offset computation for vtable metadata is correct.
+    assert_eq!(vtable_entries.len(), count_vtable_entries(tcx, poly_trait_ref));
 
     let layout = tcx
         .layout_of(ty::ParamEnv::reveal_all().and(ty))
