@@ -1,8 +1,7 @@
 error: vtable entries for `<S as A>`: [
            Method(<S as T>::method),
            MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
+           MetadataTyLayout,
        ]
   --> $DIR/multiple-markers.rs:21:1
    |
@@ -13,8 +12,7 @@ error: vtable entries for `<S as B>`: [
            Method(<S as T>::method),
            TraitVPtr(<S as M2>),
            MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
+           MetadataTyLayout,
        ]
   --> $DIR/multiple-markers.rs:24:1
    |
@@ -26,8 +24,7 @@ error: vtable entries for `<S as C>`: [
            TraitVPtr(<S as M1>),
            TraitVPtr(<S as M2>),
            MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
+           MetadataTyLayout,
        ]
   --> $DIR/multiple-markers.rs:27:1
    |
@@ -40,8 +37,7 @@ error: vtable entries for `<S as D>`: [
            TraitVPtr(<S as M1>),
            TraitVPtr(<S as M2>),
            MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
+           MetadataTyLayout,
        ]
   --> $DIR/multiple-markers.rs:30:1
    |

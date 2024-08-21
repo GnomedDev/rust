@@ -11,6 +11,25 @@ use crate::common::IntPredicate;
 use crate::traits::*;
 use crate::{common, meth};
 
+pub(crate) fn unpack_vtable_layout<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
+    bx: &mut Bx,
+    layout: Bx::Value,
+) -> [Bx::Value; 2] {
+    // The packed layout is never 0
+    bx.range_metadata(layout, WrappingRange { start: 1, end: !0 });
+
+    // layout & layout.wrapping_sub(1)
+    let decremented = bx.sub(layout, bx.const_usize(1));
+    let clear_lsb = bx.and(layout, decremented);
+
+    // clear_lsb >> 1
+    let size = bx.lshr(clear_lsb, bx.const_usize(1));
+    // layout ^ clear_lsb
+    let align = bx.xor(layout, clear_lsb);
+
+    [size, align]
+}
+
 pub fn size_and_align_of_dst<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     bx: &mut Bx,
     t: Ty<'tcx>,
@@ -26,19 +45,12 @@ pub fn size_and_align_of_dst<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     match t.kind() {
         ty::Dynamic(predicates, _, _) => {
             let metadata_index = ty::get_vtable_metadata_index(bx.tcx(), predicates.principal());
-            let align_index = metadata_index + ty::VTABLE_ALIGN_OFFSET;
-            let size_index = metadata_index + ty::VTABLE_SIZE_OFFSET;
+            let layout_index = metadata_index + ty::VTABLE_LAYOUT_OFFSET;
 
             // Load size/align from vtable.
             let vtable = info.unwrap();
-            let size = meth::VirtualIndex::from_index(size_index).get_usize(bx, vtable);
-            let align = meth::VirtualIndex::from_index(align_index).get_usize(bx, vtable);
-
-            // Size is always <= isize::MAX.
-            let size_bound = bx.data_layout().ptr_sized_integer().signed_max() as u128;
-            bx.range_metadata(size, WrappingRange { start: 0, end: size_bound });
-            // Alignment is always nonzero.
-            bx.range_metadata(align, WrappingRange { start: 1, end: !0 });
+            let layout = meth::VirtualIndex::from_index(layout_index).get_usize(bx, vtable);
+            let [size, align] = unpack_vtable_layout(bx, layout);
 
             (size, align)
         }

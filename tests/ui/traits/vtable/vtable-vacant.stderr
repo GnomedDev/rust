@@ -4,8 +4,7 @@ error: vtable entries for `<S as B>`: [
            Method(<S as B>::foo_b1),
            Vacant,
            MetadataDropInPlace,
-           MetadataSize,
-           MetadataAlign,
+           MetadataTyLayout,
        ]
   --> $DIR/vtable-vacant.rs:14:1
    |
