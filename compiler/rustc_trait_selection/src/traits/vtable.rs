@@ -369,9 +369,7 @@ pub(crate) fn first_method_vtable_slot<'tcx>(tcx: TyCtxt<'tcx>, key: ty::TraitRe
         let mut vptr_offset = 0;
         move |segment| {
             match segment {
-                VtblSegment::MetadataDSA => {
-                    vptr_offset += TyCtxt::COMMON_VTABLE_ENTRIES.len();
-                }
+                VtblSegment::MetadataDSA => bug!("Reached end of vtable without finding slot"),
                 VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
                     if tcx
                         .normalize_erasing_late_bound_regions(ty::ParamEnv::reveal_all(), trait_ref)
@@ -424,18 +422,22 @@ pub(crate) fn supertrait_vtable_slot<'tcx>(
         .normalize_erasing_regions(ty::ParamEnv::reveal_all(), source.principal().unwrap())
         .with_self_ty(tcx, tcx.types.trait_object_dummy_self);
 
+    eprintln!("Upcasting {source_principal} into {target_principal}");
+
     let vtable_segment_callback = {
         let mut vptr_offset = 0;
         move |segment| {
+            eprintln!("Found segment {segment:?} at vptr_offset {vptr_offset}");
             match segment {
                 VtblSegment::MetadataDSA => {
-                    vptr_offset += TyCtxt::COMMON_VTABLE_ENTRIES.len();
+                    bug!("Reached end of vtable without finding supertrait slot")
                 }
                 VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
                     vptr_offset += tcx.own_existential_vtable_entries(trait_ref.def_id()).len();
                     if tcx.normalize_erasing_regions(ty::ParamEnv::reveal_all(), trait_ref)
                         == target_principal
                     {
+                        eprintln!("Found our target trait and emit_vptr: {emit_vptr}");
                         if emit_vptr {
                             return ControlFlow::Break(Some(vptr_offset));
                         } else {

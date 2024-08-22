@@ -1146,7 +1146,7 @@ impl<'a> DiagCtxtHandle<'a> {
             self.inner.borrow().must_produce_diag.is_none(),
             "should only need to collect a backtrace once"
         );
-        self.inner.borrow_mut().must_produce_diag = Some(Backtrace::capture());
+        self.inner.borrow_mut().must_produce_diag = None;
     }
 }
 
