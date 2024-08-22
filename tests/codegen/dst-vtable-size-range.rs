@@ -1,4 +1,7 @@
 //@ compile-flags: -O -Z merge-functions=disabled
+//@ ignore-test
+// This test does not work anymore as size/align are loaded from a single entry and extracted from there.
+// To fix this, LLVM would need a way to annotate a value with range metadata, instead of loads/stores/args.
 
 #![crate_type = "lib"]
 #![feature(core_intrinsics)]

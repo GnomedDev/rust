@@ -11,6 +11,11 @@ use crate::common::IntPredicate;
 use crate::traits::*;
 use crate::{common, meth};
 
+fn annotate_with_range<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(bx: &mut Bx, value: Bx::Value, value_size: Size, value_align: Align, range_metadata: WrappingRange) {
+    let place = bx.alloca(value_size, value_align);
+    bx.store_to_place(, place)
+}
+
 pub(crate) fn unpack_vtable_layout<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     bx: &mut Bx,
     layout: Bx::Value,
@@ -26,6 +31,15 @@ pub(crate) fn unpack_vtable_layout<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     let size = bx.lshr(clear_lsb, bx.const_usize(1));
     // layout ^ clear_lsb
     let align = bx.xor(layout, clear_lsb);
+
+
+    
+    // Size is always <= isize::MAX.
+    let size_bound = bx.data_layout().ptr_sized_integer().signed_max() as u128;
+    bx.range_metadata(size, WrappingRange { start: 0, end: size_bound });
+
+    // Alignment is always nonzero.
+    bx.range_metadata(align, WrappingRange { start: 1, end: !0 });
 
     (size, align)
 }
