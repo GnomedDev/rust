@@ -1,3 +1,4 @@
+use std::iter::once;
 use std::marker::PhantomData;
 
 use rustc_data_structures::captures::Captures;
@@ -216,7 +217,10 @@ struct FulfillProcessor<'a, 'tcx> {
     selcx: SelectionContext<'a, 'tcx>,
 }
 
-fn mk_pending(os: Vec<PredicateObligation<'_>>) -> Vec<PendingPredicateObligation<'_>> {
+fn mk_pending<'tcx, R>(os: impl IntoIterator<Item = PredicateObligation<'tcx>>) -> R
+where
+    R: FromIterator<PendingPredicateObligation<'tcx>>,
+{
     os.into_iter()
         .map(|o| PendingPredicateObligation { obligation: o, stalled_on: vec![] })
         .collect()
@@ -369,7 +373,7 @@ impl<'a, 'tcx> ObligationProcessor for FulfillProcessor<'a, 'tcx> {
                 | ty::PredicateKind::Clause(ty::ClauseKind::ConstEvaluatable(..))
                 | ty::PredicateKind::ConstEquate(..) => {
                     let pred = ty::Binder::dummy(infcx.enter_forall_and_leak_universe(binder));
-                    ProcessResult::Changed(mk_pending(vec![obligation.with(infcx.tcx, pred)]))
+                    ProcessResult::Changed(mk_pending(once(obligation.with(infcx.tcx, pred))))
                 }
                 ty::PredicateKind::Ambiguous => ProcessResult::Unchanged,
                 ty::PredicateKind::NormalizesTo(..) => {
@@ -460,7 +464,7 @@ impl<'a, 'tcx> ObligationProcessor for FulfillProcessor<'a, 'tcx> {
                         // `<lhs_ty as Add<rhs_ty>>::Output` when this is an `Expr` representing
                         // `lhs + rhs`.
                         ty::ConstKind::Expr(_) => {
-                            return ProcessResult::Changed(mk_pending(vec![]));
+                            return ProcessResult::Changed(vec![]);
                         }
                         ty::ConstKind::Placeholder(_) => {
                             bug!("placeholder const {:?} in old solver", ct)
@@ -826,9 +830,9 @@ impl<'a, 'tcx> FulfillProcessor<'a, 'tcx> {
                 ProcessResult::Unchanged
             }
             // Let the caller handle the recursion
-            ProjectAndUnifyResult::Recursive => ProcessResult::Changed(mk_pending(vec![
+            ProjectAndUnifyResult::Recursive => ProcessResult::Changed(mk_pending(once(
                 project_obligation.with(tcx, project_obligation.predicate),
-            ])),
+            ))),
             ProjectAndUnifyResult::MismatchedProjectionTypes(e) => {
                 ProcessResult::Error(FulfillmentErrorCode::Project(e))
             }
